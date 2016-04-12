@@ -24,7 +24,9 @@ class Interaction(object):
     def __init__(self, interaction, response=None):
         self.json = interaction
         self.orig_response = response
+        self.used = False
         self.recorded_response = self.deserialize()
+        self.used = False
 
     def as_response(self):
         """Return the Interaction as a Response object."""

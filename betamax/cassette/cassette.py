@@ -18,7 +18,8 @@ class Cassette(object):
         'match_requests_on': ['method', 'uri'],
         're_record_interval': None,
         'placeholders': [],
-        'preserve_exact_body_bytes': False
+        'preserve_exact_body_bytes': False,
+        'allow_playback_repeats': False,
     }
 
     def __init__(self, cassette_name, serialization_format, **kwargs):
@@ -47,6 +48,10 @@ class Cassette(object):
         # Determine whether to preserve exact body bytes
         self.preserve_exact_body_bytes = _option_from(
             'preserve_exact_body_bytes', kwargs, defaults
+            )
+
+        self.allow_playback_repeats = _option_from(
+            'allow_playback_repeats', kwargs, defaults
             )
 
         # Initialize the interactions
@@ -109,6 +114,10 @@ class Cassette(object):
         :param request: ``requests.PreparedRequest``
         :returns: :class:`Interaction <Interaction>`
         """
+        # if we are recording, do not filter by match
+        if self.is_recording() and self.record_mode != 'all':
+            return None
+
         opts = self.match_options
         # Curry those matchers
         curried_matchers = [
@@ -118,12 +127,16 @@ class Cassette(object):
 
         for i in self.interactions:
             # If the interaction matches everything
-            if i.match(curried_matchers):
+            if i.match(curried_matchers) and not i.used:
                 if self.record_mode == 'all':
                     # If we're recording everything and there's a matching
                     # interaction we want to overwrite it, so we remove it.
                     self.interactions.remove(i)
                     break
+
+                # set interaction as used before returning
+                if not self.allow_playback_repeats:
+                    i.used = True
                 return i
 
         # No matches. So sad.
